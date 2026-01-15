@@ -1,0 +1,90 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+
+env:
+  AWS_REGION: us-east-1
+  # Define o ambiente baseado na branch
+  ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
+
+permissions:
+  id-token: write   # Necessário para AWS OIDC
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # 1. Autenticação Segura na AWS (Sem chaves fixas)
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 2. Login no Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # 3. Build & Push Backend
+      - name: Build and push Backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          REPO: ${{ secrets.ECR_REPOSITORY_BACKEND }}
+        run: |
+          docker build -t $ECR_REGISTRY/$REPO:$IMAGE_TAG -t $ECR_REGISTRY/$REPO:latest ./app/backend
+          docker push $ECR_REGISTRY/$REPO:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$REPO:latest
+
+      # 4. Build & Push Frontend
+      - name: Build and push Frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          REPO: ${{ secrets.ECR_REPOSITORY_FRONTEND }}
+        run: |
+          # Passa args de build se necessário (ex: URL da API)
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL="https://api.${{ env.ENVIRONMENT }}.biotech-x.com" \
+            -t $ECR_REGISTRY/$REPO:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$REPO:latest ./app/frontend
+          docker push $ECR_REGISTRY/$REPO:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$REPO:latest
+
+      # 5. Deploy no EKS (Atualização da Imagem)
+      - name: Update Kubeconfig
+        run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+      - name: Deploy to EKS
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          BACKEND_REPO: ${{ secrets.ECR_REPOSITORY_BACKEND }}
+          FRONTEND_REPO: ${{ secrets.ECR_REPOSITORY_FRONTEND }}
+        run: |
+          # Substitui as variáveis nos manifestos K8s pelos valores reais da imagem
+          # Ferramenta 'envsubst' injeta as variáveis de ambiente nos arquivos YAML
+
+          # Primeiro, definimos as variáveis completas para substituição
+          export ECR_BACKEND_URI="$ECR_REGISTRY/$BACKEND_REPO:$IMAGE_TAG"
+          export ECR_FRONTEND_URI="$ECR_REGISTRY/$FRONTEND_REPO:$IMAGE_TAG"
+
+          # Renderiza os manifestos e aplica
+          # Nota: Em um cenário real, usaríamos Helm ou Kustomize.
+          # Para o desafio "Simples", usaremos sed/envsubst nos arquivos criados na Etapa 4.
+
+          sed -i "s|ECR_REPOSITORY_URI/biotech-backend:latest|$ECR_BACKEND_URI|g" infra/k8s/application.yaml
+          sed -i "s|ECR_REPOSITORY_URI/biotech-frontend:latest|$ECR_FRONTEND_URI|g" infra/k8s/application.yaml
+
+          kubectl apply -f infra/k8s/application.yaml
+
+          # Força rollout para garantir a atualização imediata
+          kubectl rollout status deployment/biotech-backend
+          kubectl rollout status deployment/biotech-frontend

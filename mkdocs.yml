@@ -1,0 +1,16 @@
+site_name: Biotech-X DevOps Challenge
+site_description: Documentação da Arquitetura e Processos DevOps
+theme:
+  name: material
+  palette:
+    primary: teal
+    accent: purple
+  features:
+    - navigation.tabs
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Arquitetura: architecture.md
+  - Guia de Deploy: deploy.md
+  - SRE & Troubleshooting: sre.md

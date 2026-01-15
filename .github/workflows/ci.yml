@@ -1,0 +1,73 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  # Job de Qualidade do Backend (Python)
+  backend-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install ruff black pytest
+          if [ -f app/backend/requirements.txt ]; then pip install -r app/backend/requirements.txt; fi
+
+      - name: Lint with Ruff
+        run: ruff check app/backend/
+
+      - name: Format Check with Black
+        run: black --check app/backend/
+
+      - name: Run Unit Tests
+        run: pytest app/backend/
+
+  # Job de Qualidade do Frontend (Next.js)
+  frontend-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: app/frontend/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: app/frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: app/frontend
+        run: npm run lint
+
+      - name: Build Test
+        working-directory: app/frontend
+        run: npm run build
+
+  # Job de Validação de Infraestrutura (Terraform)
+  infra-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Format Check
+        working-directory: infra
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        working-directory: infra
+        run: |
+          terraform init -backend=false
+          terraform validate

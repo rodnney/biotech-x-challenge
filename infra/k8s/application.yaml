@@ -1,0 +1,141 @@
+# -----------------------------------
+# Backend: FastAPI Deployment
+# -----------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: biotech-backend
+  namespace: default
+  labels:
+    app: biotech-backend
+spec:
+  replicas: 2 # Começa com 2 para HA
+  selector:
+    matchLabels:
+      app: biotech-backend
+  template:
+    metadata:
+      labels:
+        app: biotech-backend
+    spec:
+      serviceAccountName: default # Associar à IAM Role criada no Terraform (via Annotation)
+      containers:
+        - name: backend
+          image: ECR_REPOSITORY_URI/biotech-backend:latest # Será substituído no CD
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: host
+            - name: S3_INPUT_BUCKET
+              value: "biotech-input-bucket-name"
+          # Resources são CRÍTICOS para o HPA funcionar
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          # Self-Healing: Verifica se a app está viva
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+# -----------------------------------
+# Backend: Service
+# -----------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: biotech-backend-svc
+spec:
+  type: ClusterIP # Interno apenas
+  selector:
+    app: biotech-backend
+  ports:
+    - port: 80
+      targetPort: 8000
+---
+# -----------------------------------
+# Frontend: Next.js Deployment
+# -----------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: biotech-frontend
+  labels:
+    app: biotech-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: biotech-frontend
+  template:
+    metadata:
+      labels:
+        app: biotech-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ECR_REPOSITORY_URI/biotech-frontend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: "https://api.biotech-x.com" # Exemplo
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /api/health # Rota a ser criada no Next
+              port: 3000
+            initialDelaySeconds: 10
+---
+# -----------------------------------
+# Frontend: Service
+# -----------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: biotech-frontend-svc
+spec:
+  type: NodePort # Ou ClusterIP se usar AWS Load Balancer Controller
+  selector:
+    app: biotech-frontend
+  ports:
+    - port: 80
+      targetPort: 3000
+---
+# -----------------------------------
+# Autoscaling (HPA) - Requisito: Suportar grande quantidade de usuários
+# -----------------------------------
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: biotech-backend-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: biotech-backend
+  minReplicas: 2
+  maxReplicas: 20 # Escala até 20 pods sob demanda
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70 # Escala se CPU passar de 70%
