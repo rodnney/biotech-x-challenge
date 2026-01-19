@@ -14,21 +14,46 @@ permissions:
   contents: read
 
 jobs:
-  build-and-deploy:
+  # Job para validação quando não há AWS configurada
+  validate-demo:
     runs-on: ubuntu-latest
+    if: ${{ secrets.AWS_ROLE_ARN == '' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # 1. Autenticação AWS (Modo demonstração)
+      - name: Build Backend (Demo)
+        run: |
+          echo "Building backend for demonstration..."
+          docker build -t biotech-backend:demo ./app/backend
+
+      - name: Build Frontend (Demo)
+        run: |
+          echo "Building frontend for demonstration..."
+          docker build -t biotech-frontend:demo ./app/frontend
+
+      - name: Validate Terraform
+        run: |
+          cd infra
+          terraform init
+          terraform validate
+          echo "Terraform validation completed successfully"
+
+  # Job para deploy real quando AWS está configurada
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    # Só executa se os secrets AWS estiverem configurados
+    if: ${{ secrets.AWS_ROLE_ARN != '' }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # 1. Autenticação AWS (OIDC)
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          # Fallback para demonstração
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID || 'demo-access-key' }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY || 'demo-secret-key' }}
 
       # 2. Login no Amazon ECR
       - name: Login to Amazon ECR
