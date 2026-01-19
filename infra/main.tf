@@ -362,3 +362,88 @@ resource "aws_batch_job_queue" "main" {
   priority             = 1
   compute_environments = [aws_batch_compute_environment.main.arn]
 }
+
+# ---------------------------------------------------------------------------------------------------------------------
+# 8. GITHUB ACTIONS OIDC (CI/CD Authentication)
+# ---------------------------------------------------------------------------------------------------------------------
+# OIDC Provider - Permite GitHub Actions autenticar na AWS sem access keys
+resource "aws_iam_openid_connect_provider" "github_actions" {
+  url = "https://token.actions.githubusercontent.com"
+
+  client_id_list = ["sts.amazonaws.com"]
+
+  # Thumbprint do GitHub Actions (válido até 2031)
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+
+  tags = { Name = "${local.app_name}-github-oidc" }
+}
+
+# IAM Role que o GitHub Actions vai assumir
+resource "aws_iam_role" "github_actions_role" {
+  name = "${local.app_name}-github-actions-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = aws_iam_openid_connect_provider.github_actions.arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+        }
+        StringLike = {
+          # Substitua pelo seu repositório GitHub
+          "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:*"
+        }
+      }
+    }]
+  })
+}
+
+# Políticas para o GitHub Actions (ECR + EKS)
+resource "aws_iam_role_policy" "github_actions_ecr" {
+  name = "ecr-push-policy"
+  role = aws_iam_role.github_actions_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:PutImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "github_actions_eks" {
+  name = "eks-deploy-policy"
+  role = aws_iam_role.github_actions_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListClusters"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
