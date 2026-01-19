@@ -1,0 +1,80 @@
+# Docker Compose para desenvolvimento local
+# Remove version (obsoleto no Docker Compose v2+)
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: biotech-postgres
+    environment:
+      POSTGRES_DB: biotech_db
+      POSTGRES_USER: admin_user
+      POSTGRES_PASSWORD: ChangeMeInProduction123!
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # LocalStack (AWS Services Emulator)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: biotech-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,rds,eks,ecr,iam,sts
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+    volumes:
+      - localstack_data:/tmp/localstack
+
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: ./app/backend
+      dockerfile: Dockerfile
+    container_name: biotech-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://admin_user:ChangeMeInProduction123!@postgres:5432/biotech_db
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_ACCESS_KEY_ID=demo-access-key
+      - AWS_SECRET_ACCESS_KEY=demo-secret-key
+      - AWS_DEFAULT_REGION=us-east-1
+      - S3_INPUT_BUCKET=biotech-input-local
+      - S3_OUTPUT_BUCKET=biotech-output-local
+    depends_on:
+      - postgres
+      - localstack
+    volumes:
+      - ./app/backend:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./app/frontend
+      dockerfile: Dockerfile
+    container_name: biotech-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_ENV=development
+    depends_on:
+      - backend
+    volumes:
+      - ./app/frontend:/app
+      - /app/node_modules
+    command: npm run dev
+
+volumes:
+  postgres_data:
+    driver: local
+  localstack_data:
+    driver: local
+
+networks:
+  default:
+    name: biotech-network

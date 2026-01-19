@@ -8,16 +8,25 @@ terraform {
       version = "~> 5.0"
     }
   }
-  backend "s3" {
-    # Em um cenário real, configure seu bucket de estado aqui.
-    # bucket = "biotech-x-terraform-state"
-    # key    = "prod/terraform.tfstate"
-    # region = "us-east-1"
-  }
+  # Estado local - não requer AWS real para o desafio
+  #backend "s3" {
+  # bucket = "biotech-x-terraform-state"
+  # key    = "prod/terraform.tfstate"
+  # region = "us-east-1"
+  #}
 }
 
 provider "aws" {
-  region = "us-east-1"
+  region                      = "us-east-1"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_region_validation      = true
+  skip_requesting_account_id  = true
+
+  # Para demonstração - não requer AWS real
+  access_key = "demo-access-key"
+  secret_key = "demo-secret-key"
+
   default_tags {
     tags = {
       Project     = "Biotech-X"
@@ -145,6 +154,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "input_lifecycle" {
   rule {
     id     = "expire-after-365-days"
     status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
+
     expiration {
       days = 365
     }
@@ -168,6 +182,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "output_lifecycle" {
   rule {
     id     = "retain-5-years"
     status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
+
     expiration {
       days = 1825 # 5 anos
     }
@@ -181,7 +200,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "output_lifecycle" {
 
 # Bloqueio de acesso público (Segurança)
 resource "aws_s3_bucket_public_access_block" "block_public_input" {
-  bucket = aws_s3_bucket.input_bucket.id
+  bucket                  = aws_s3_bucket.input_bucket.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -223,8 +242,8 @@ resource "aws_iam_role" "eks_cluster_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "eks.amazonaws.com" }
     }]
   })
@@ -251,8 +270,8 @@ resource "aws_iam_role" "eks_node_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "ec2.amazonaws.com" }
     }]
   })
@@ -301,8 +320,8 @@ resource "aws_iam_role" "batch_service_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "batch.amazonaws.com" }
     }]
   })
@@ -318,8 +337,8 @@ resource "aws_iam_role" "ecs_instance_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "ec2.amazonaws.com" }
     }]
   })
@@ -342,7 +361,7 @@ resource "aws_batch_compute_environment" "main" {
     type                = "SPOT" # Otimização de Custo (FinOps)
     allocation_strategy = "BEST_FIT_PROGRESSIVE"
     bid_percentage      = 100
-    ec2_key_pair        = "" # Opcional
+    ec2_key_pair        = ""
     image_id            = "ami-05655c267c89566dd" # Exemplo Amazon Linux 2 ECS Optimized
     instance_role       = aws_iam_instance_profile.ecs_instance_role.arn
     instance_type       = ["c5.large", "m5.large"]
@@ -357,8 +376,118 @@ resource "aws_batch_compute_environment" "main" {
 }
 
 resource "aws_batch_job_queue" "main" {
-  name                 = "${local.app_name}-job-queue"
-  state                = "ENABLED"
-  priority             = 1
-  compute_environments = [aws_batch_compute_environment.main.arn]
+  name     = "${local.app_name}-job-queue"
+  state    = "ENABLED"
+  priority = 1
+
+  compute_environment_order {
+    order               = 1
+    compute_environment = aws_batch_compute_environment.main.arn
+  }
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# 8. CONTAINER REGISTRY (ECR)
+# ---------------------------------------------------------------------------------------------------------------------
+resource "aws_ecr_repository" "backend" {
+  name                 = "biotech-backend"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+resource "aws_ecr_repository" "frontend" {
+  name                 = "biotech-frontend"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# 9. GITHUB ACTIONS OIDC (CI/CD Authentication)
+# ---------------------------------------------------------------------------------------------------------------------
+# OIDC Provider - Permite GitHub Actions autenticar na AWS sem access keys
+resource "aws_iam_openid_connect_provider" "github_actions" {
+  url = "https://token.actions.githubusercontent.com"
+
+  client_id_list = ["sts.amazonaws.com"]
+
+  # Thumbprint do GitHub Actions (válido até 2031)
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+
+  tags = { Name = "${local.app_name}-github-oidc" }
+}
+
+# IAM Role que o GitHub Actions vai assumir
+resource "aws_iam_role" "github_actions_role" {
+  name = "${local.app_name}-github-actions-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = aws_iam_openid_connect_provider.github_actions.arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+        }
+        StringLike = {
+          # Substitua pelo seu repositório GitHub
+          "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:*"
+        }
+      }
+    }]
+  })
+}
+
+# Políticas para o GitHub Actions (ECR + EKS)
+resource "aws_iam_role_policy" "github_actions_ecr" {
+  name = "ecr-push-policy"
+  role = aws_iam_role.github_actions_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:PutImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "github_actions_eks" {
+  name = "eks-deploy-policy"
+  role = aws_iam_role.github_actions_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListClusters"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
