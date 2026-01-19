@@ -9,10 +9,10 @@ terraform {
     }
   }
   # Estado local - não requer AWS real para o desafio
-    #backend "s3" {
-    # bucket = "biotech-x-terraform-state"
-    # key    = "prod/terraform.tfstate"
-    # region = "us-east-1"
+  #backend "s3" {
+  # bucket = "biotech-x-terraform-state"
+  # key    = "prod/terraform.tfstate"
+  # region = "us-east-1"
   #}
 }
 
@@ -200,7 +200,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "output_lifecycle" {
 
 # Bloqueio de acesso público (Segurança)
 resource "aws_s3_bucket_public_access_block" "block_public_input" {
-  bucket = aws_s3_bucket.input_bucket.id
+  bucket                  = aws_s3_bucket.input_bucket.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -242,8 +242,8 @@ resource "aws_iam_role" "eks_cluster_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "eks.amazonaws.com" }
     }]
   })
@@ -270,8 +270,8 @@ resource "aws_iam_role" "eks_node_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "ec2.amazonaws.com" }
     }]
   })
@@ -320,8 +320,8 @@ resource "aws_iam_role" "batch_service_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "batch.amazonaws.com" }
     }]
   })
@@ -337,8 +337,8 @@ resource "aws_iam_role" "ecs_instance_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "ec2.amazonaws.com" }
     }]
   })
@@ -361,7 +361,7 @@ resource "aws_batch_compute_environment" "main" {
     type                = "SPOT" # Otimização de Custo (FinOps)
     allocation_strategy = "BEST_FIT_PROGRESSIVE"
     bid_percentage      = 100
-    ec2_key_pair        = "" # Opcional
+    ec2_key_pair        = ""
     image_id            = "ami-05655c267c89566dd" # Exemplo Amazon Linux 2 ECS Optimized
     instance_role       = aws_iam_instance_profile.ecs_instance_role.arn
     instance_type       = ["c5.large", "m5.large"]
