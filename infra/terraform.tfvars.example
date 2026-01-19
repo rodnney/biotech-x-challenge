@@ -1,0 +1,7 @@
+# Exemplo de configuração para o desafio (não requer AWS real)
+github_repository = "seu-usuario/biotech-x-challenge"
+
+# Para validação local, configure credenciais de demonstração no PowerShell:
+# $env:AWS_ACCESS_KEY_ID="demo-access-key"
+# $env:AWS_SECRET_ACCESS_KEY="demo-secret-key"
+# $env:AWS_DEFAULT_REGION="us-east-1"
