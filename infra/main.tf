@@ -8,16 +8,25 @@ terraform {
       version = "~> 5.0"
     }
   }
-  backend "s3" {
-    # Em um cenário real, configure seu bucket de estado aqui.
+  # Estado local - não requer AWS real para o desafio
+    #backend "s3" {
     # bucket = "biotech-x-terraform-state"
     # key    = "prod/terraform.tfstate"
     # region = "us-east-1"
-  }
+  #}
 }
 
 provider "aws" {
-  region = "us-east-1"
+  region                      = "us-east-1"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_region_validation      = true
+  skip_requesting_account_id  = true
+
+  # Para demonstração - não requer AWS real
+  access_key = "demo-access-key"
+  secret_key = "demo-secret-key"
+
   default_tags {
     tags = {
       Project     = "Biotech-X"
@@ -145,6 +154,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "input_lifecycle" {
   rule {
     id     = "expire-after-365-days"
     status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
+
     expiration {
       days = 365
     }
@@ -168,6 +182,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "output_lifecycle" {
   rule {
     id     = "retain-5-years"
     status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
+
     expiration {
       days = 1825 # 5 anos
     }
@@ -357,14 +376,39 @@ resource "aws_batch_compute_environment" "main" {
 }
 
 resource "aws_batch_job_queue" "main" {
-  name                 = "${local.app_name}-job-queue"
-  state                = "ENABLED"
-  priority             = 1
-  compute_environments = [aws_batch_compute_environment.main.arn]
+  name     = "${local.app_name}-job-queue"
+  state    = "ENABLED"
+  priority = 1
+
+  compute_environment_order {
+    order               = 1
+    compute_environment = aws_batch_compute_environment.main.arn
+  }
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# 8. GITHUB ACTIONS OIDC (CI/CD Authentication)
+# 8. CONTAINER REGISTRY (ECR)
+# ---------------------------------------------------------------------------------------------------------------------
+resource "aws_ecr_repository" "backend" {
+  name                 = "biotech-backend"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+resource "aws_ecr_repository" "frontend" {
+  name                 = "biotech-frontend"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# 9. GITHUB ACTIONS OIDC (CI/CD Authentication)
 # ---------------------------------------------------------------------------------------------------------------------
 # OIDC Provider - Permite GitHub Actions autenticar na AWS sem access keys
 resource "aws_iam_openid_connect_provider" "github_actions" {

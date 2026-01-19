@@ -20,12 +20,15 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # 1. Autenticação Segura na AWS (Sem chaves fixas)
+      # 1. Autenticação AWS (Modo demonstração)
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          # Fallback para demonstração
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID || 'demo-access-key' }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY || 'demo-secret-key' }}
 
       # 2. Login no Amazon ECR
       - name: Login to Amazon ECR
