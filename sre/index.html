@@ -1,0 +1,803 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentação da Arquitetura e Processos DevOps">
+      
+      
+      
+        <link rel="canonical" href="https://rodnney.github.io/biotech-x-challenge/sre/">
+      
+      
+        <link rel="prev" href="../architecture/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>SRE & Troubleshooting - Biotech-X DevOps Challenge</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#sre-runbook-e-estrategia-de-observabilidade" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Biotech-X DevOps Challenge" class="md-header__button md-logo" aria-label="Biotech-X DevOps Challenge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Biotech-X DevOps Challenge
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              SRE & Troubleshooting
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Arquitetura
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../deploy.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Guia de Deploy
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  SRE & Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Biotech-X DevOps Challenge" class="md-nav__button md-logo" aria-label="Biotech-X DevOps Challenge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Biotech-X DevOps Challenge
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Arquitetura
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deploy.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guia de Deploy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SRE & Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SRE & Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cenario-falha-de-conexao-com-banco-de-dados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cenário: Falha de Conexão com Banco de Dados
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cenário: Falha de Conexão com Banco de Dados">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-como-realizar-o-debug-passo-a-passo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Como realizar o Debug (Passo a Passo)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-solucao-e-mitigacao-permanente-post-mortem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Solução e Mitigação Permanente (Post-Mortem)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estrategia-de-slos-e-slis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estratégia de SLOs e SLIs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Estratégia de SLOs e SLIs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sli-service-level-indicator-o-que-medimos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLI (Service Level Indicator) - O que medimos?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slo-service-level-objective-nossa-meta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLO (Service Level Objective) - Nossa meta?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#como-acompanhamos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Como acompanhamos?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cenario-falha-de-conexao-com-banco-de-dados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cenário: Falha de Conexão com Banco de Dados
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cenário: Falha de Conexão com Banco de Dados">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-como-realizar-o-debug-passo-a-passo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Como realizar o Debug (Passo a Passo)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-solucao-e-mitigacao-permanente-post-mortem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Solução e Mitigação Permanente (Post-Mortem)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estrategia-de-slos-e-slis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estratégia de SLOs e SLIs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Estratégia de SLOs e SLIs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sli-service-level-indicator-o-que-medimos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLI (Service Level Indicator) - O que medimos?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slo-service-level-objective-nossa-meta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLO (Service Level Objective) - Nossa meta?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#como-acompanhamos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Como acompanhamos?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="sre-runbook-e-estrategia-de-observabilidade">SRE: Runbook e Estratégia de Observabilidade</h1>
+<h2 id="cenario-falha-de-conexao-com-banco-de-dados">Cenário: Falha de Conexão com Banco de Dados</h2>
+<p><strong>Incidente:</strong> A aplicação (FastAPI) reporta erros 500 e logs indicam <code>OperationalError: connection could not be established</code>.</p>
+<h3 id="1-como-realizar-o-debug-passo-a-passo">1. Como realizar o Debug (Passo a Passo)</h3>
+<p>Em ordem de probabilidade e facilidade de verificação:</p>
+<ol>
+<li><strong>Verificar Métricas do RDS (CloudWatch):</strong><ul>
+<li>A CPU está em 100%?</li>
+<li>O número de conexões (<code>DatabaseConnections</code>) atingiu o limite (<code>max_connections</code>)?</li>
+</ul>
+</li>
+<li><strong>Verificar Conectividade de Rede (VPC/Security Groups):</strong><ul>
+<li>Houve alteração recente no Terraform?</li>
+<li>Testar conectividade via <strong>Bastion Host</strong> ou um pod de debug no cluster: <code>nc -zv db-endpoint 5432</code>.</li>
+</ul>
+</li>
+<li><strong>Logs da Aplicação:</strong><ul>
+<li>O erro é de <em>timeout</em> (rede/performance) ou <em>access denied</em> (credenciais)?</li>
+</ul>
+</li>
+<li><strong>Estado do Cluster:</strong><ul>
+<li>Houve um evento de failover Multi-AZ? (O DNS pode estar propagando).</li>
+</ul>
+</li>
+</ol>
+<h3 id="2-solucao-e-mitigacao-permanente-post-mortem">2. Solução e Mitigação Permanente (Post-Mortem)</h3>
+<p>Se a causa raiz for identificada, aplicamos as seguintes correções para evitar recorrência:</p>
+<ul>
+<li><strong>Problema:</strong> Credenciais erradas/expiradas.<ul>
+<li><strong>Solução:</strong> Implementar rotação automática de segredos com AWS Secrets Manager integrado diretamente ao EKS via CSI Driver.</li>
+</ul>
+</li>
+<li><strong>Problema:</strong> Esgotamento de Conexões.<ul>
+<li><strong>Solução:</strong> Implementar <strong>PgBouncer</strong> (Connection Pooling) como sidecar ou serviço intermediário para gerenciar conexões de forma eficiente, evitando sobrecarga no Postgres.</li>
+</ul>
+</li>
+<li><strong>Problema:</strong> Alteração acidental de Security Group.<ul>
+<li><strong>Solução:</strong> Bloquear alterações manuais via IAM e reforçar GitOps (só o Terraform altera infraestrutura).</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h2 id="estrategia-de-slos-e-slis">Estratégia de SLOs e SLIs</h2>
+<p>Para a plataforma Biotech-X, definimos os seguintes indicadores baseados na satisfação do usuário (cientistas).</p>
+<h3 id="sli-service-level-indicator-o-que-medimos">SLI (Service Level Indicator) - O que medimos?</h3>
+<ol>
+<li><strong>Disponibilidade de Upload:</strong> Porcentagem de requisições <code>POST /upload</code> bem-sucedidas (HTTP 2xx).</li>
+<li><strong>Latência de Filtro:</strong> Tempo de resposta para endpoints de filtragem de dados (<code>GET /analysis/filter</code>).</li>
+<li><strong>Taxa de Sucesso de Análise:</strong> Porcentagem de Jobs no AWS Batch que terminam com status <code>SUCCEEDED</code>.</li>
+</ol>
+<h3 id="slo-service-level-objective-nossa-meta">SLO (Service Level Objective) - Nossa meta?</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Categoria</th>
+<th style="text-align: left;">SLO</th>
+<th style="text-align: left;">Justificativa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Disponibilidade</strong></td>
+<td style="text-align: left;"><strong>99.9%</strong> (mensal)</td>
+<td style="text-align: left;">O sistema é crítico para operação diária, permitindo ~43min de indisponibilidade/mês.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Latência (API)</strong></td>
+<td style="text-align: left;"><strong>95%</strong> das reqs &lt; <strong>500ms</strong></td>
+<td style="text-align: left;">A interface deve ser responsiva para análise interativa de dados.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Confiabilidade Batch</strong></td>
+<td style="text-align: left;"><strong>99.0%</strong> de sucesso</td>
+<td style="text-align: left;">Falhas de análise atrasam pesquisas, mas re-tentativas (retries) são aceitáveis.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="como-acompanhamos">Como acompanhamos?</h3>
+<ul>
+<li><strong>Dashboards:</strong> Grafana conectado ao CloudWatch/Prometheus exibindo os "Error Budgets" restantes.</li>
+<li><strong>Alertas:</strong> PagerDuty acionado quando a taxa de queima do Error Budget indica que o SLO será violado nas próximas 4 horas.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
