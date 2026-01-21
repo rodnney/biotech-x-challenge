@@ -1,4 +1,5 @@
 site_name: Biotech-X DevOps Challenge
+site_url: https://rodnney.github.io/biotech-x-challenge/
 site_description: Documentação da Arquitetura e Processos DevOps
 theme:
   name: material
